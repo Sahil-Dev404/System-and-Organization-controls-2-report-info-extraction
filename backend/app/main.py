@@ -58,6 +58,17 @@ RESULTS_CACHE: Dict[str, Dict[str, Any]] = {}
 MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
 
 
+@app.get("/")
+def read_root() -> Dict[str, Any]:
+    """Root endpoint confirming service status and providing API links."""
+    return {
+        "service": "SOCRR-lite API",
+        "status": "online",
+        "docs": "/docs",
+        "health": "/api/health"
+    }
+
+
 @app.get("/api/health")
 def get_health() -> Dict[str, Any]:
     """Health check endpoint indicating OCR availability and offline mode."""
