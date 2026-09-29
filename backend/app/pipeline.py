@@ -26,20 +26,21 @@ PARTIAL_THRESHOLD = 0.12
 # Section boundary patterns
 SECTION_PATTERNS = {
     "section_1": [
-        r"^\s*(?:SECTION\s+(?:I|1)\b|INDEPENDENT\s+(?:SERVICE\s+)?AUDITOR['’]?S\s+(?:ASSURANCE\s+)?REPORT)",
+        r"^\s*(?:SECTION\s+(?:I|1)\b.*INDEPENDENT|INDEPENDENT\s+(?:SERVICE\s+)?AUDITOR['’]?S\s+(?:ASSURANCE\s+)?REPORT)",
         r"^\s*INDEPENDENT\s+SERVICE\s+AUDITOR['’]?S\s+REPORT"
     ],
     "section_2": [
-        r"^\s*(?:SECTION\s+(?:II|2)\b|MANAGEMENT['’]?S\s+ASSERTION|STATEMENT\s+BY\s+(?:THE\s+)?SERVICE\s+ORGANIZATION)",
-        r"^\s*ASSERTION\s+OF\s+(?:THE\s+)?MANAGEMENT"
+        r"^\s*(?:SECTION\s+(?:II|2)\b.*MANAGEMENT|MANAGEMENT['’]?S\s+ASSERTION|STATEMENT\s+BY\s+(?:THE\s+)?SERVICE\s+ORGANIZATION|ASSERTION\s+OF\s+(?:THE\s+)?MANAGEMENT)",
+        r"^\s*MANAGEMENT\s+ASSERTION\s+LETTER"
     ],
     "section_3": [
         r"^\s*(?:SECTION\s+(?:III|3)\b|(?:SERVICE\s+ORGANIZATION['’]?S\s+)?DESCRIPTION\s+OF\s+(?:THE\s+)?SYSTEM|SYSTEM\s+DESCRIPTION)",
         r"^\s*DESCRIPTION\s+OF\s+THE\s+BOUNDARIES\s+OF\s+THE\s+SYSTEM"
     ],
     "section_4": [
-        r"^\s*(?:SECTION\s+(?:IV|4)\b|CONTROL\s+DESCRIPTION\s+AND\s+TEST(?:S)?|TESTS\s+OF\s+CONTROLS\s+AND\s+RESULTS)",
-        r"^\s*TRUST\s+SERVICES\s+CRITERIA,\s+RELATED\s+CONTROLS"
+        r"^\s*(?:SECTION\s+(?:IV|4)\b|CONTROL\s+DESCRIPTION\s+AND\s+TEST(?:S)?|TESTS\s+OF\s+CONTROLS\s+AND\s+RESULTS|TRUST\s+SERVICES\s+CRITERIA,\s+RELATED\s+CONTROLS)",
+        r"^\s*Description\s+of\s+Criteria\b",
+        r"^\s*4\.1\s*Trust\s+Services\s+Principles"
     ],
     "section_5": [
         r"^\s*(?:SECTION\s+(?:V|5)\b|OTHER\s+INFORMATION\s+(?:PROVIDED\s+BY\s+MANAGEMENT)?|ANNEXURE|UNAUDITED\s+INFORMATION)"
@@ -76,7 +77,8 @@ KNOWN_SUBSERVICE_ORGS = [
     "Amazon Web Services (AWS)", "Amazon Web Services", "AWS",
     "Snowflake Computing", "Snowflake",
     "Microsoft Azure", "Azure", "Google Cloud Platform", "GCP",
-    "Cloudflare", "Datadog", "Salesforce", "Fastly", "Akamai", "MongoDB", "Twilio"
+    "Cloudflare", "Datadog", "Salesforce", "Fastly", "Akamai", "MongoDB", "Twilio",
+    "GoDaddy", "Big Rock", "INfiflex"
 ]
 
 
@@ -171,11 +173,11 @@ def segment_report(pages: List[Dict[str, Any]]) -> Dict[str, Any]:
     for sec_key, patterns in SECTION_PATTERNS.items():
         found_page = None
         for p in pages:
-            # Skip page 1 (cover) and 2 (typical TOC) for sections other than section 1
-            if p["page_num"] <= 2 and sec_key != "section_1":
+            # Skip page 1 (cover)
+            if p["page_num"] <= 1:
                 continue
             lines = [l.strip() for l in p["text"].splitlines() if l.strip()]
-            for line in lines[:8]:
+            for line in lines:
                 # Ignore Table of Contents lines with dotted leaders (e.g. '... 10')
                 if re.search(r"\.{4,}\s*\d+", line):
                     continue
@@ -238,19 +240,37 @@ def extract_dates(text: str) -> Tuple[str, str]:
     if m3:
         return m3.group(1).strip(), m3.group(2).strip()
 
+    # Point-in-time / As of dates (e.g. As of July 20th, 2024 or as on 20th July 2024)
+    as_of = re.search(r"(?:as\s+(?:of|on))\s+([0-9]{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]+\s+[0-9]{4}|[A-Za-z]+\s+[0-9]{1,2}(?:st|nd|rd|th)?,?\s+[0-9]{4})", text, re.IGNORECASE)
+    if as_of:
+        d_raw = as_of.group(1).strip()
+        clean_d = re.sub(r"(?<=\d)(?:st|nd|rd|th)", "", d_raw).strip()
+        return f"As of {clean_d}", clean_d
+
     return "N/A", "N/A"
 
 
 def extract_auditor_firm(text: str) -> str:
-    """Identify the independent service auditor firm from KNOWN_AUDIT_FIRMS."""
+    """Identify the independent service auditor firm from KNOWN_AUDIT_FIRMS or report signatures."""
     for firm in KNOWN_AUDIT_FIRMS:
         if re.search(rf"\b{re.escape(firm)}\b", text, re.IGNORECASE):
             return firm
 
+    # Check for Cyborgenic or CPA Name signatures
+    cpa_match = re.search(r"CPA\s+Name:?\s*[-–—]?\s*([A-Za-z\s.]+?)(?:\s+License|\n|$)", text, re.IGNORECASE)
+    if cpa_match:
+        cpa_name = cpa_match.group(1).strip()
+        if "cyborgenic" in text.lower():
+            return f"Cyborgenic / {cpa_name}, CPA"
+        return f"{cpa_name}, CPA"
+
+    if "cyborgenic" in text.lower():
+        return "Cyborgenic"
+
     llp_match = re.search(r"([A-Z][A-Za-z&\s]+(?:LLP|CPA|LLC|P\.C\.))", text)
     if llp_match:
         cand = llp_match.group(1).strip()
-        if len(cand) < 40 and not any(w in cand.lower() for w in ["system", "service", "management", "assertion"]):
+        if len(cand) < 40 and not any(w in cand.lower() for w in ["system", "service", "management", "assertion", "aicpa"]):
             return cand
 
     return "Ernst & Young LLP" if "ernst" in text.lower() else "Unknown Auditor"
@@ -271,6 +291,18 @@ def extract_trust_criteria(text: str) -> List[str]:
 def extract_service_org_and_system(cover_text: str, sec1_text: str) -> Tuple[str, str]:
     """Extract service organization name and system in scope."""
     combined = cover_text + "\n" + sec1_text
+
+    # Pattern: Description of "<Org> - <System>"
+    desc_match = re.search(r"Description\s+of\s+[“\"\'\‘\’]([^”\"\'\‘\’\n]+)[”\"\'\‘\’]", cover_text, re.IGNORECASE)
+    if desc_match:
+        cand = desc_match.group(1).strip()
+        if " - " in cand:
+            parts = cand.split(" - ", 1)
+            return parts[0].strip(), parts[1].strip()
+        elif " titled " in cand.lower():
+            p = re.split(r"\s+titled\s+", cand, flags=re.IGNORECASE)
+            return p[0].strip(), p[1].strip()
+        return cand, "Enterprise Service Platform"
 
     org_match = re.search(r"(?:Service\s+Organization:|Company:)\s*([A-Za-z0-9\s_.,-]+?)(?:\n|System|Period|$)", cover_text, re.IGNORECASE)
     sys_match = re.search(r"(?:System\s+in\s+Scope:|System:)\s*([A-Za-z0-9\s_.,-]+?)(?:\n|Trust|Period|$)", cover_text, re.IGNORECASE)
@@ -518,16 +550,36 @@ def extract_subservices_from_report(sec3_text: str, tables: List[Dict[str, Any]]
 
     # Text heuristic fallback if table was missing
     if not subservices:
-        for org in KNOWN_SUBSERVICE_ORGS:
-            if re.search(rf"\b{re.escape(org)}\b", sec3_text, re.IGNORECASE):
-                is_carve = bool(re.search(r"carve[\s-]?out", sec3_text, re.IGNORECASE))
+        sub_block_match = re.search(r"Subservice\s+(?:Organizations|providers)[\s\S]{10,800}?(?=\nA\.\d|\n[B-Z]\.|$)", sec3_text, re.IGNORECASE)
+        if sub_block_match:
+            block_text = sub_block_match.group(0)
+            is_carve = "not covered" in block_text.lower() or "carve" in block_text.lower() or "excludes" in block_text.lower()
+            for line in block_text.splitlines():
+                line_clean = line.strip().rstrip(":")
+                if not line_clean or line_clean.lower().startswith("subservice") or "purview" in line_clean.lower() or len(line_clean) < 3 or "outsourced" in line_clean.lower() or "classification" in line_clean.lower() or "assistance" in line_clean.lower() or "private" in line_clean.lower():
+                    continue
+                name = line_clean
+                if "aws" in name.lower():
+                    name = "Amazon Web Services (AWS)"
                 subservices.append({
-                    "name": org,
+                    "name": name,
                     "method": "Carve-Out" if is_carve else "Inclusive",
-                    "services": "Hosting, infrastructure / Data warehouse",
-                    "csocs": ["Physical security, availability"],
+                    "services": "Hosting & Cloud Infrastructure Services",
+                    "csocs": ["Physical security, availability, and network perimeter controls"],
                     "risk_flag": "HIGH" if is_carve else "LOW"
                 })
+
+        if not subservices:
+            for org in KNOWN_SUBSERVICE_ORGS:
+                if re.search(rf"\b{re.escape(org)}\b", sec3_text, re.IGNORECASE):
+                    is_carve = bool(re.search(r"carve[\s-]?out", sec3_text, re.IGNORECASE))
+                    subservices.append({
+                        "name": org,
+                        "method": "Carve-Out" if is_carve else "Inclusive",
+                        "services": "Hosting, infrastructure / Data warehouse",
+                        "csocs": ["Physical security, availability"],
+                        "risk_flag": "HIGH" if is_carve else "LOW"
+                    })
 
     return subservices
 
@@ -684,14 +736,22 @@ def run_pipeline(pdf_path: str, controls_df: Optional[pd.DataFrame] = None) -> D
 
     # 3. Metadata & Opinion
     cover_text = pages[0]["text"] if pages else ""
-    sec1_text = sections.get("section_1", {}).get("text", cover_text)
+    # Find auditor report text (checks for 'independent' or 'auditor' heading)
+    auditor_text = ""
+    for s_key, s_val in sections.items():
+        s_txt = s_val.get("text", "")
+        if "independent" in s_txt[:600].lower() or "auditor" in s_txt[:600].lower():
+            auditor_text = s_txt
+            break
+    if not auditor_text:
+        auditor_text = sections.get("section_1", {}).get("text", cover_text)
 
-    org, system = extract_service_org_and_system(cover_text, sec1_text)
-    rep_type = extract_report_type(cover_text + " " + sec1_text)
-    p_start, p_end = extract_dates(sec1_text + " " + cover_text)
-    auditor = extract_auditor_firm(sec1_text + " " + cover_text)
-    criteria = extract_trust_criteria(sec1_text + " " + cover_text)
-    opinion = classify_auditor_opinion(sec1_text)
+    org, system = extract_service_org_and_system(cover_text, auditor_text)
+    rep_type = extract_report_type(cover_text + " " + auditor_text)
+    p_start, p_end = extract_dates(cover_text + " " + auditor_text)
+    auditor = extract_auditor_firm(auditor_text + " " + cover_text)
+    criteria = extract_trust_criteria(cover_text + " " + auditor_text)
+    opinion = classify_auditor_opinion(auditor_text)
 
     metadata = {
         "org": org,
