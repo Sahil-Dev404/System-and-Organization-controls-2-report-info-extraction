@@ -32,14 +32,17 @@ app = FastAPI(
 
 # CORS: allow local dev origins, Vercel deployments, and custom configured origins
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+default_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "https://system-and-organization-controls-2.vercel.app",
+]
+
 if allowed_origins_env.strip():
-    allowed_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+    allowed_origins = list(set(default_origins + [o.strip() for o in allowed_origins_env.split(",") if o.strip()]))
 else:
-    allowed_origins = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-    ]
+    allowed_origins = default_origins
 
 # Automatically permit all Vercel preview and production domains (*.vercel.app)
 allowed_origin_regex = os.getenv("ALLOWED_ORIGIN_REGEX", r"^https:\/\/.*\.vercel\.app$")
@@ -51,7 +54,23 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    """Fallback handler ensuring unhandled exceptions return CORS-friendly JSON responses."""
+    logger.error(f"Unhandled server error: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal server error: {str(exc)}"},
+        headers={
+            "Access-Control-Allow-Origin": request.headers.get("origin", "*") if request.headers.get("origin") else "*",
+            "Access-Control-Allow-Credentials": "true",
+        }
+    )
+
 
 # In-memory result cache for exports
 RESULTS_CACHE: Dict[str, Dict[str, Any]] = {}

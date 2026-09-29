@@ -37,7 +37,7 @@ export async function analyzeReport(pdfFile, controlsCsvFile = null) {
       body: formData
     });
   } catch (netErr) {
-    throw new Error('Backend not reachable. Please verify the backend service is running.');
+    throw new Error('Unable to connect to the backend server. Render free tier instances spin down after inactivity and take ~45–60 seconds to wake up. Please wait a moment and click Analyze again.');
   }
 
   if (!response.ok) {

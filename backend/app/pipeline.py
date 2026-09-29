@@ -145,25 +145,54 @@ def parse_pdf(pdf_path: str | Path) -> Tuple[List[Dict[str, Any]], List[Dict[str
 
     tables = []
     table_pages_count = 0
+    # Use high-performance, low-memory PyMuPDF native table extractor (prevents OOM on cloud servers)
     try:
-        with pdfplumber.open(pdf_path_obj) as pdf:
-            for idx, page in enumerate(pdf.pages):
-                extracted = page.extract_tables()
-                if extracted:
+        doc = pymupdf.open(pdf_path_obj)
+        for idx, page in enumerate(doc):
+            try:
+                tabs = page.find_tables()
+                if tabs and len(tabs.tables) > 0:
                     table_pages_count += 1
-                    for t_idx, tbl in enumerate(extracted):
+                    for tab in tabs:
+                        extracted = tab.extract()
                         cleaned_rows = []
-                        for row in tbl:
+                        for row in extracted:
                             if row and any(cell and str(cell).strip() for cell in row):
                                 cleaned_rows.append([str(cell).strip() if cell is not None else "" for cell in row])
                         if cleaned_rows:
                             tables.append({"page_num": idx + 1, "rows": cleaned_rows})
-                    if table_pages_count >= 150:
-                        warnings.append("Table extraction reached maximum limit of 150 table-bearing pages.")
+                    if table_pages_count >= 100:
+                        warnings.append("Table extraction reached maximum limit of 100 table-bearing pages to conserve memory.")
                         break
+            except Exception:
+                continue
+        doc.close()
     except Exception as e:
-        logger.warning(f"pdfplumber table extract warning: {e}")
-        warnings.append(f"Warning during table extraction: {str(e)}")
+        logger.warning(f"PyMuPDF table extract warning: {e}")
+
+    # Fallback to pdfplumber only if PyMuPDF detected zero tables (only inspect first 50 pages to prevent OOM)
+    if not tables:
+        try:
+            with pdfplumber.open(pdf_path_obj) as pdf:
+                for idx, page in enumerate(pdf.pages[:50]):
+                    extracted = page.extract_tables()
+                    if extracted:
+                        table_pages_count += 1
+                        for t_idx, tbl in enumerate(extracted):
+                            cleaned_rows = []
+                            for row in tbl:
+                                if row and any(cell and str(cell).strip() for cell in row):
+                                    cleaned_rows.append([str(cell).strip() if cell is not None else "" for cell in row])
+                            if cleaned_rows:
+                                tables.append({"page_num": idx + 1, "rows": cleaned_rows})
+                        if table_pages_count >= 50:
+                            break
+        except Exception as e:
+            logger.warning(f"pdfplumber table extract warning: {e}")
+            warnings.append(f"Warning during table extraction: {str(e)}")
+
+    import gc
+    gc.collect()
 
     return pages, tables, warnings
 

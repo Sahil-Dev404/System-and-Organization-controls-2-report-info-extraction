@@ -16,7 +16,7 @@ import SubserviceTable from './components/SubserviceTable';
 import CuecTable from './components/CuecTable';
 import Footer from './components/Footer';
 import ErrorBanner from './components/ErrorBanner';
-import { analyzeReport } from './api';
+import { analyzeReport, checkHealth } from './api';
 
 
 
@@ -28,6 +28,13 @@ export default function App() {
   const [analysisResult, setAnalysisResult] = useState(null);
 
   const resultsRef = useRef(null);
+
+  // Proactively wake up backend service (Render free-tier cold start) on page load
+  useEffect(() => {
+    checkHealth().catch(() => {
+      // Background warmup, ignore initial cold-start delay
+    });
+  }, []);
 
   // Smooth scroll to results once loaded
   useEffect(() => {
