@@ -1,9 +1,10 @@
 import React from 'react';
+import { getExportUrl } from '../api';
 
 export default function ResultsHeader({ org, processingSeconds, resultId }) {
   const handleDownload = (format) => {
     if (!resultId) return;
-    const url = `/api/export/${resultId}.${format}`;
+    const url = getExportUrl(resultId, format);
     const link = document.createElement('a');
     link.href = url;
     link.setAttribute('download', '');

@@ -1,17 +1,24 @@
 /**
  * API client for SOCRR-lite backend services.
- * All requests are relative to support the Vite dev proxy and production serving.
+ * Supports VITE_API_URL environment variable for production (e.g. Render),
+ * and defaults to relative paths for local Vite dev proxy and rewrites.
  */
+
+export const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+
+export function getExportUrl(resultId, format) {
+  return `${API_BASE_URL}/api/export/${resultId}.${format}`;
+}
 
 export async function checkHealth() {
   try {
-    const res = await fetch('/api/health');
+    const res = await fetch(`${API_BASE_URL}/api/health`);
     if (!res.ok) {
       throw new Error(`Health check returned status ${res.status}`);
     }
     return await res.json();
   } catch (err) {
-    throw new Error('Backend not reachable. Is FastAPI running on port 8000?');
+    throw new Error('Backend not reachable. Please verify the backend service is running.');
   }
 }
 
@@ -25,12 +32,12 @@ export async function analyzeReport(pdfFile, controlsCsvFile = null) {
 
   let response;
   try {
-    response = await fetch('/api/analyze', {
+    response = await fetch(`${API_BASE_URL}/api/analyze`, {
       method: 'POST',
       body: formData
     });
   } catch (netErr) {
-    throw new Error('Backend not reachable. Is FastAPI running on port 8000?');
+    throw new Error('Backend not reachable. Please verify the backend service is running.');
   }
 
   if (!response.ok) {
@@ -48,3 +55,4 @@ export async function analyzeReport(pdfFile, controlsCsvFile = null) {
 
   return await response.json();
 }
+
