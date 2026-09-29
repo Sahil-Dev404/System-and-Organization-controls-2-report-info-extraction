@@ -121,7 +121,31 @@ def export_excel(data: Dict[str, Any]) -> bytes:
         ws_cuec.append(["None", "", "No CUECs detected.", "", 0.0, ""])
     style_and_autosize(ws_cuec)
 
+    # 6. Criteria Health Sheet
+    crit_health = data.get("criteria_health", {})
+    categories = crit_health.get("categories", []) if isinstance(crit_health, dict) else []
+    ws_health = wb.create_sheet(title="Criteria Health")
+    ws_health.append(["Category Code", "Category Name", "Principle", "Total Controls", "Passed", "Exceptions Count", "Health Score (%)", "Status", "Exception IDs"])
+    if categories:
+        for cat in categories:
+            exc_ids = ", ".join(cat.get("exceptions", [])) or "None"
+            ws_health.append([
+                cat.get("category_id", ""),
+                cat.get("name", ""),
+                cat.get("principle", ""),
+                cat.get("total_controls", 0),
+                cat.get("passed_controls", 0),
+                cat.get("exception_count", 0),
+                cat.get("health_score", 100.0),
+                cat.get("status", "Optimal"),
+                exc_ids
+            ])
+    else:
+        ws_health.append(["None", "No criteria health data available", "", 0, 0, 0, 100.0, "Optimal", "None"])
+    style_and_autosize(ws_health)
+
     buffer = io.BytesIO()
     wb.save(buffer)
     buffer.seek(0)
     return buffer.getvalue()
+

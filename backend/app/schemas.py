@@ -45,6 +45,26 @@ class CuecSchema(BaseModel):
     status: str  # "Mapped", "Partially Mapped", or "Gap"
 
 
+class CriteriaHealthItemSchema(BaseModel):
+    category_id: str
+    name: str
+    principle: str
+    total_controls: int = 0
+    passed_controls: int = 0
+    exception_count: int = 0
+    health_score: float = 100.0
+    status: str = "Optimal"  # "Optimal", "Attention", or "Critical"
+    exceptions: List[str] = Field(default_factory=list)
+
+
+class TrustCriteriaHealthSchema(BaseModel):
+    overall_health: float = 100.0
+    total_controls_tested: int = 0
+    total_passed: int = 0
+    total_exceptions: int = 0
+    categories: List[CriteriaHealthItemSchema] = Field(default_factory=list)
+
+
 class SummarySchema(BaseModel):
     exception_count: int = 0
     carve_out_count: int = 0
@@ -66,3 +86,5 @@ class AnalysisResponse(BaseModel):
     subservice_orgs: List[SubserviceOrgSchema]
     cuecs: List[CuecSchema]
     summary: SummarySchema
+    criteria_health: Optional[TrustCriteriaHealthSchema] = None
+

@@ -520,6 +520,175 @@ def extract_exceptions_from_controls(controls: List[Dict[str, Any]], model_pipel
     return exceptions
 
 
+def classify_control_trust_criteria(crit: str, desc: str, cid: str) -> Tuple[str, str, str]:
+    """
+    Classifies a control into standard AICPA 2017 Trust Services Criteria:
+    Returns (category_id, category_name, principle)
+    """
+    combined = f"{crit} {cid} {desc}".upper()
+
+    # Common Criteria (Security Principle)
+    if re.search(r"\bCC1\b|CC1\.", combined) or "CONTROL ENVIRONMENT" in combined or "BACKGROUND CHECK" in combined or "ETHICS" in combined or "CODE OF CONDUCT" in combined or "CTL-HR" in combined:
+        return ("CC1", "Control Environment", "Security")
+    if re.search(r"\bCC2\b|CC2\.", combined) or "COMMUNICATION" in combined or "INTERNAL COMMUNICATION" in combined:
+        return ("CC2", "Communication & Information", "Security")
+    if re.search(r"\bCC3\b|CC3\.", combined) or "RISK ASSESSMENT" in combined or "RISK EVALUATION" in combined:
+        return ("CC3", "Risk Assessment", "Security")
+    if re.search(r"\bCC4\b|CC4\.", combined) or "MONITORING ACTIVITIES" in combined:
+        return ("CC4", "Monitoring Activities", "Security")
+    if re.search(r"\bCC5\b|CC5\.", combined):
+        return ("CC5", "Control Activities", "Security")
+    if re.search(r"\bCC6\b|CC6\.", combined) or "ACCESS" in combined or "ENCRYPT" in combined or "MFA" in combined or "PASSWORD" in combined or "DEPROVISION" in combined or "CTL-AC" in combined or "CTL-DS" in combined:
+        return ("CC6", "Logical & Physical Access Controls", "Security")
+    if re.search(r"\bCC7\b|CC7\.", combined) or "INCIDENT" in combined or "VULNERABILITY" in combined or "SIEM" in combined or "SECURITY MONITOR" in combined or "CTL-IR" in combined:
+        return ("CC7", "System Operations & Incident Response", "Security")
+    if re.search(r"\bCC8\b|CC8\.", combined) or "CHANGE MANAGEMENT" in combined or "DEPLOY" in combined or "CODE REVIEW" in combined or "CTL-CM" in combined:
+        return ("CC8", "Change Management", "Security")
+    if re.search(r"\bCC9\b|CC9\.", combined) or "VENDOR" in combined or "SUBSERVICE" in combined or "THIRD-PARTY" in combined or "CTL-VR" in combined:
+        return ("CC9", "Risk Mitigation & Vendor Mgmt", "Security")
+
+    # Availability Principle
+    if re.search(r"\bA1\b|A1\.", combined) or "AVAILABILITY" in combined or "BACKUP" in combined or "DISASTER RECOVERY" in combined or "BUSINESS CONTINUITY" in combined or "CTL-BC" in combined:
+        return ("A1", "Availability & Disaster Recovery", "Availability")
+
+    # Confidentiality Principle
+    if re.search(r"\bC1\b|C1\.", combined) or "CONFIDENTIAL" in combined or "DATA CLASSIFICATION" in combined:
+        return ("C1", "Confidentiality & Data Protection", "Confidentiality")
+
+    # Processing Integrity Principle
+    if re.search(r"\bPI1\b|PI1\.", combined) or "PROCESSING INTEGRITY" in combined or "INPUT VALIDATION" in combined:
+        return ("PI1", "Processing Integrity", "Processing Integrity")
+
+    # Privacy Principle
+    if re.search(r"\bP\d\b|P\d\.", combined) or "PRIVACY" in combined or "CONSENT" in combined or "DATA RETENTION" in combined:
+        return ("P1", "Privacy & Personal Data", "Privacy")
+
+    return ("CC6", "Logical & Physical Access Controls", "Security")
+
+
+def compute_trust_criteria_health(all_controls: List[Dict[str, Any]], exceptions: List[Dict[str, Any]], criteria_list: List[str]) -> Dict[str, Any]:
+    """
+    Computes Trust Criteria Health Breakdown across all tested controls and exceptions.
+    """
+    buckets: Dict[str, Dict[str, Any]] = {}
+    valid_controls = []
+
+    for c in all_controls:
+        cid = c.get("control_id", "").strip()
+        crit = c.get("criteria", "").strip()
+        desc = c.get("description", "").strip()
+
+        # Filter out table of contents or table header rows
+        if cid.lower() in ["section", "section i", "section ii", "section iii", "section iv", "section v", "control id", "table of contents", "page", "criteria", "control"]:
+            continue
+        if not (re.search(r"[A-Za-z0-9]", cid) and (re.search(r"(?:CC|A\d|C\d|P\d|PI\d)", crit, re.IGNORECASE) or len(desc) > 15)):
+            continue
+
+        valid_controls.append(c)
+        cat_id, cat_name, princ = classify_control_trust_criteria(crit, desc, cid)
+
+        if cat_id not in buckets:
+            buckets[cat_id] = {
+                "category_id": cat_id,
+                "name": cat_name,
+                "principle": princ,
+                "total_controls": 0,
+                "passed_controls": 0,
+                "exception_count": 0,
+                "exceptions": []
+            }
+
+        buckets[cat_id]["total_controls"] += 1
+        res = c.get("result", "")
+        is_exc = parse_exception_details(res)["is_exception"]
+        if is_exc:
+            buckets[cat_id]["exception_count"] += 1
+            if cid not in buckets[cat_id]["exceptions"]:
+                buckets[cat_id]["exceptions"].append(cid)
+        else:
+            buckets[cat_id]["passed_controls"] += 1
+
+    # Fallback if section 4 tables had no full control rows: build from exceptions
+    if not buckets and exceptions:
+        for exc in exceptions:
+            cid = exc.get("control_id", "CTL-EXC")
+            crit = exc.get("criteria", "CC6.1")
+            desc = exc.get("description", "")
+            cat_id, cat_name, princ = classify_control_trust_criteria(crit, desc, cid)
+            if cat_id not in buckets:
+                buckets[cat_id] = {
+                    "category_id": cat_id,
+                    "name": cat_name,
+                    "principle": princ,
+                    "total_controls": 0,
+                    "passed_controls": 0,
+                    "exception_count": 0,
+                    "exceptions": []
+                }
+            buckets[cat_id]["total_controls"] += 1
+            buckets[cat_id]["exception_count"] += 1
+            if cid not in buckets[cat_id]["exceptions"]:
+                buckets[cat_id]["exceptions"].append(cid)
+
+    # Ensure in-scope principles from metadata are represented
+    for crit in criteria_list:
+        crit_clean = crit.strip()
+        principle_key = None
+        if "availab" in crit_clean.lower():
+            principle_key = ("A1", "Availability & Disaster Recovery", "Availability")
+        elif "confidential" in crit_clean.lower():
+            principle_key = ("C1", "Confidentiality & Data Protection", "Confidentiality")
+        elif "priva" in crit_clean.lower():
+            principle_key = ("P1", "Privacy & Personal Data", "Privacy")
+        elif "integrity" in crit_clean.lower():
+            principle_key = ("PI1", "Processing Integrity", "Processing Integrity")
+        elif "secur" in crit_clean.lower() and not any(b["principle"] == "Security" for b in buckets.values()):
+            principle_key = ("CC6", "Logical & Physical Access Controls", "Security")
+
+        if principle_key and principle_key[0] not in buckets:
+            buckets[principle_key[0]] = {
+                "category_id": principle_key[0],
+                "name": principle_key[1],
+                "principle": principle_key[2],
+                "total_controls": 1,
+                "passed_controls": 1,
+                "exception_count": 0,
+                "exceptions": []
+            }
+
+    categories = []
+    order = ["CC1", "CC2", "CC3", "CC4", "CC5", "CC6", "CC7", "CC8", "CC9", "A1", "C1", "PI1", "P1"]
+    sorted_keys = sorted(buckets.keys(), key=lambda k: order.index(k) if k in order else 99)
+
+    for k in sorted_keys:
+        item = buckets[k]
+        total = item["total_controls"]
+        passed = item["passed_controls"]
+        score = round((passed / total * 100), 1) if total > 0 else 100.0
+        if score == 100.0:
+            status = "Optimal"
+        elif score >= 80.0:
+            status = "Attention"
+        else:
+            status = "Critical"
+        item["health_score"] = score
+        item["status"] = status
+        categories.append(item)
+
+    total_tested = sum(c["total_controls"] for c in categories)
+    total_passed = sum(c["passed_controls"] for c in categories)
+    total_exceptions = sum(c["exception_count"] for c in categories)
+    overall = round((total_passed / total_tested * 100), 1) if total_tested > 0 else 100.0
+
+    return {
+        "overall_health": overall,
+        "total_controls_tested": total_tested,
+        "total_passed": total_passed,
+        "total_exceptions": total_exceptions,
+        "categories": categories
+    }
+
+
 def extract_subservices_from_report(sec3_text: str, tables: List[Dict[str, Any]], sec3_range: Optional[List[int]] = None) -> List[Dict[str, Any]]:
     """Extract subservice organizations from Section III tables and text."""
     subservices = []
@@ -797,4 +966,14 @@ def run_pipeline(pdf_path: str, controls_df: Optional[pd.DataFrame] = None) -> D
 
     # 8. Apply Normalization
     normalized_payload = normalize_payload(raw_payload)
+
+    # 9. Compute Trust Criteria Health Breakdown
+    criteria_health = compute_trust_criteria_health(
+        all_controls,
+        normalized_payload.get("exceptions", exceptions),
+        metadata.get("criteria", [])
+    )
+    normalized_payload["criteria_health"] = criteria_health
+
     return normalized_payload
+

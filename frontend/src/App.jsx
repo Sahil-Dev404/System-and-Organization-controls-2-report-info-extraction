@@ -7,12 +7,14 @@ import ProgressSteps from './components/ProgressSteps';
 import ResultsHeader from './components/ResultsHeader';
 import StatCards from './components/StatCards';
 import ReportDetails from './components/ReportDetails';
+import TrustCriteriaHealth from './components/TrustCriteriaHealth';
 import ExceptionsTable from './components/ExceptionsTable';
 import SubserviceTable from './components/SubserviceTable';
 import CuecTable from './components/CuecTable';
 import Footer from './components/Footer';
 import ErrorBanner from './components/ErrorBanner';
 import { analyzeReport } from './api';
+
 
 export default function App() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -131,8 +133,12 @@ export default function App() {
             {/* Metadata & Scope Details */}
             <ReportDetails metadata={analysisResult.metadata} />
 
+            {/* Trust Criteria Health Breakdown */}
+            <TrustCriteriaHealth criteriaHealth={analysisResult.criteria_health} />
+
             {/* Control Exceptions Table */}
             <ExceptionsTable exceptions={analysisResult.exceptions} />
+
 
             {/* Subservice Organizations Table */}
             <SubserviceTable subserviceOrgs={analysisResult.subservice_orgs} />

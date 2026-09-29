@@ -36,10 +36,17 @@ def test_pipeline_smoke():
         "exceptions",
         "subservice_orgs",
         "cuecs",
-        "summary"
+        "summary",
+        "criteria_health"
     ]
     for key in required_keys:
         assert key in result, f"Missing key in pipeline response: {key}"
+
+    # Assert criteria_health structure
+    assert "overall_health" in result["criteria_health"]
+    assert "categories" in result["criteria_health"]
+    assert len(result["criteria_health"]["categories"]) > 0
+
 
     # 2. Assert metadata subkeys
     meta_keys = ["org", "system", "report_type", "period_start", "period_end", "auditor", "criteria"]

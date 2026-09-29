@@ -816,6 +816,17 @@ input:focus-visible {
   .details-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+  .health-metrics-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .health-visual-grid {
+    grid-template-columns: 1fr;
+  }
+  .radar-card {
+    max-width: 480px;
+    margin: 0 auto;
+    width: 100%;
+  }
 }
 
 @media (max-width: 680px) {
@@ -836,6 +847,9 @@ input:focus-visible {
   .details-grid {
     grid-template-columns: 1fr;
   }
+  .health-metrics-row {
+    grid-template-columns: 1fr;
+  }
   .progress-track {
     flex-wrap: wrap;
     gap: 12px;
@@ -850,3 +864,403 @@ input:focus-visible {
     justify-content: flex-end;
   }
 }
+
+/* ==========================================================================
+   Trust Criteria Health Breakdown
+   ========================================================================== */
+.criteria-health-section {
+  margin-bottom: 48px;
+}
+
+.section-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.section-subtitle {
+  font-size: 13px;
+  color: var(--color-grey-mid);
+  margin-top: 4px;
+}
+
+.overall-score-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  background-color: var(--color-black);
+  color: var(--color-white);
+  padding: 6px 16px;
+  border: 1px solid var(--color-black);
+}
+
+.overall-score-number {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.overall-score-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #bbb;
+  margin-top: 2px;
+}
+
+/* 4 Health Metric Boxes */
+.health-metrics-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.health-metric-box {
+  border: 1px solid var(--color-black);
+  padding: 16px 20px;
+  background-color: var(--color-white);
+}
+
+.health-metric-box.metric-box-alert {
+  background-color: var(--color-black);
+  color: var(--color-white);
+}
+
+.health-metric-box.metric-box-alert .metric-box-label {
+  color: #aaa;
+}
+
+.health-metric-box.metric-box-alert .metric-box-value {
+  color: var(--color-white);
+}
+
+.health-metric-box.metric-box-alert .metric-box-sub {
+  color: #ddd;
+}
+
+.metric-box-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--color-grey-light);
+  margin-bottom: 6px;
+}
+
+.metric-box-value {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--color-black);
+  margin-bottom: 4px;
+}
+
+.metric-box-sub {
+  font-size: 11px;
+  color: var(--color-grey-mid);
+}
+
+/* 2-Column Health Visual Grid */
+.health-visual-grid {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 24px;
+  align-items: stretch;
+}
+
+/* Radar Card */
+.radar-card {
+  border: 1px solid var(--color-black);
+  padding: 20px;
+  background-color: var(--color-white);
+  display: flex;
+  flex-direction: column;
+}
+
+.radar-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--color-grey-border);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+
+.radar-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.radar-legend {
+  font-size: 11px;
+  color: var(--color-grey-mid);
+  font-weight: 600;
+}
+
+.radar-svg-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+}
+
+.radar-svg {
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  user-select: none;
+}
+
+.radar-footer {
+  border-top: 1px solid var(--color-grey-border);
+  padding-top: 10px;
+  margin-top: 8px;
+  text-align: center;
+}
+
+.radar-footer-hint {
+  font-size: 11px;
+  color: var(--color-grey-mid);
+  font-style: italic;
+}
+
+/* Categories Right Panel */
+.health-categories-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.health-filters-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  border: 1px solid var(--color-black);
+  width: fit-content;
+}
+
+.health-filter-btn {
+  background-color: var(--color-white);
+  color: var(--color-black);
+  border: none;
+  border-right: 1px solid var(--color-black);
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+
+.health-filter-btn:last-child {
+  border-right: none;
+}
+
+.health-filter-btn:hover {
+  background-color: #f0f0f0;
+}
+
+.health-filter-btn.active {
+  background-color: var(--color-black);
+  color: var(--color-white);
+}
+
+.categories-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.category-health-card {
+  border: 1px solid var(--color-grey-border);
+  background-color: var(--color-white);
+  padding: 14px 18px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.category-health-card:hover,
+.category-health-card.category-highlighted {
+  border-color: var(--color-black);
+  background-color: #fafafa;
+}
+
+.category-health-card.has-exceptions {
+  border-left: 4px solid var(--color-black);
+}
+
+.cat-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cat-code-and-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cat-code-badge {
+  background-color: var(--color-black);
+  color: var(--color-white);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  display: inline-block;
+}
+
+.cat-title-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-black);
+}
+
+.cat-status-badge-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cat-principle-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-grey-mid);
+}
+
+.cat-status-pill {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  display: inline-block;
+  text-align: center;
+}
+
+.cat-status-pill.status-optimal {
+  background-color: var(--color-black);
+  color: var(--color-white);
+}
+
+.cat-status-pill.status-attention {
+  background-color: var(--color-white);
+  border: 1.5px solid var(--color-black);
+  color: var(--color-black);
+}
+
+.cat-status-pill.status-critical {
+  background: repeating-linear-gradient(
+    -45deg,
+    #ffffff,
+    #ffffff 3px,
+    #000000 3px,
+    #000000 4px
+  );
+  border: 1px solid var(--color-black);
+  color: var(--color-black);
+  font-weight: 800;
+  padding: 1px 7px;
+}
+
+/* Meter Bar */
+.cat-meter-container {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.cat-meter-track {
+  flex: 1;
+  height: 8px;
+  background-color: #ededed;
+  border: 1px solid #ccc;
+  overflow: hidden;
+}
+
+.cat-meter-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.cat-meter-fill.meter-fill-solid {
+  background-color: var(--color-black);
+}
+
+.cat-meter-fill.meter-fill-pattern {
+  background: repeating-linear-gradient(
+    -45deg,
+    #000000,
+    #000000 4px,
+    #555555 4px,
+    #555555 6px
+  );
+}
+
+.cat-meter-percentage {
+  font-size: 13px;
+  font-weight: 800;
+  width: 45px;
+  text-align: right;
+  color: var(--color-black);
+}
+
+.cat-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--color-grey-mid);
+  flex-wrap: wrap;
+  gap: 8px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 8px;
+}
+
+.cat-controls-tally {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tally-dot {
+  color: var(--color-grey-light);
+}
+
+.tally-exception-count {
+  color: var(--color-black);
+  font-weight: 700;
+}
+
+.cat-exceptions-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cat-exc-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-black);
+}
+
+.cat-exc-chip {
+  background-color: #f0f0f0;
+  border: 1px solid var(--color-black);
+  color: var(--color-black);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+}
+
