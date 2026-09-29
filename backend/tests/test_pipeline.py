@@ -37,7 +37,9 @@ def test_pipeline_smoke():
         "subservice_orgs",
         "cuecs",
         "summary",
-        "criteria_health"
+        "criteria_health",
+        "cloud_infrastructure",
+        "freshness"
     ]
     for key in required_keys:
         assert key in result, f"Missing key in pipeline response: {key}"
@@ -46,6 +48,18 @@ def test_pipeline_smoke():
     assert "overall_health" in result["criteria_health"]
     assert "categories" in result["criteria_health"]
     assert len(result["criteria_health"]["categories"]) > 0
+
+    # Assert cloud_infrastructure structure
+    assert "hosting_providers" in result["cloud_infrastructure"]
+    assert "databases" in result["cloud_infrastructure"]
+    assert "encryption_at_rest" in result["cloud_infrastructure"]
+    assert "encryption_in_transit" in result["cloud_infrastructure"]
+
+    # Assert freshness structure
+    assert "status" in result["freshness"]
+    assert "days_since_end" in result["freshness"]
+    assert "requires_bridge_letter" in result["freshness"]
+
 
 
     # 2. Assert metadata subkeys

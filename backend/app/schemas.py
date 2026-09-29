@@ -65,6 +65,24 @@ class TrustCriteriaHealthSchema(BaseModel):
     categories: List[CriteriaHealthItemSchema] = Field(default_factory=list)
 
 
+class CloudInfrastructureSchema(BaseModel):
+    hosting_providers: List[str] = Field(default_factory=list)
+    databases: List[str] = Field(default_factory=list)
+    encryption_at_rest: List[str] = Field(default_factory=list)
+    encryption_in_transit: List[str] = Field(default_factory=list)
+    raw_details: str = ""
+
+
+class ReportFreshnessSchema(BaseModel):
+    period_start: str = "N/A"
+    period_end: str = "N/A"
+    days_since_end: int = 0
+    months_since_end: float = 0.0
+    status: str = "Active"  # "Active", "Expiring Soon", "Expired"
+    alert_message: str = ""
+    requires_bridge_letter: bool = False
+
+
 class SummarySchema(BaseModel):
     exception_count: int = 0
     carve_out_count: int = 0
@@ -87,4 +105,7 @@ class AnalysisResponse(BaseModel):
     cuecs: List[CuecSchema]
     summary: SummarySchema
     criteria_health: Optional[TrustCriteriaHealthSchema] = None
+    cloud_infrastructure: Optional[CloudInfrastructureSchema] = None
+    freshness: Optional[ReportFreshnessSchema] = None
+
 

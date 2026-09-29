@@ -6,7 +6,10 @@ import FileRow from './components/FileRow';
 import ProgressSteps from './components/ProgressSteps';
 import ResultsHeader from './components/ResultsHeader';
 import StatCards from './components/StatCards';
+import FreshnessTimeline from './components/FreshnessTimeline';
 import ReportDetails from './components/ReportDetails';
+import CloudInfrastructure from './components/CloudInfrastructure';
+import TrustBoundaryDiagram from './components/TrustBoundaryDiagram';
 import TrustCriteriaHealth from './components/TrustCriteriaHealth';
 import ExceptionsTable from './components/ExceptionsTable';
 import SubserviceTable from './components/SubserviceTable';
@@ -14,6 +17,7 @@ import CuecTable from './components/CuecTable';
 import Footer from './components/Footer';
 import ErrorBanner from './components/ErrorBanner';
 import { analyzeReport } from './api';
+
 
 
 export default function App() {
@@ -130,14 +134,34 @@ export default function App() {
               summary={analysisResult.summary}
             />
 
+            {/* Audit Period Freshness Timeline */}
+            <FreshnessTimeline
+              freshness={analysisResult.freshness}
+              org={analysisResult.metadata?.org}
+            />
+
             {/* Metadata & Scope Details */}
             <ReportDetails metadata={analysisResult.metadata} />
+
+            {/* Cloud & Infrastructure Stack (Section III) */}
+            <CloudInfrastructure
+              cloudInfra={analysisResult.cloud_infrastructure}
+            />
+
+            {/* System & Trust Boundary Architecture Diagram */}
+            <TrustBoundaryDiagram
+              metadata={analysisResult.metadata}
+              cuecs={analysisResult.cuecs}
+              subserviceOrgs={analysisResult.subservice_orgs}
+              exceptions={analysisResult.exceptions}
+            />
 
             {/* Trust Criteria Health Breakdown */}
             <TrustCriteriaHealth criteriaHealth={analysisResult.criteria_health} />
 
             {/* Control Exceptions Table */}
             <ExceptionsTable exceptions={analysisResult.exceptions} />
+
 
 
             {/* Subservice Organizations Table */}
