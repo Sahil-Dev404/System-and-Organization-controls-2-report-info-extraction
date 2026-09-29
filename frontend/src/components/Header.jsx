@@ -10,7 +10,7 @@ export default function Header({ onReset }) {
         </div>
         <div className="header-status">
           <span className="header-bullet">●</span>
-          <span>Runs locally · No data leaves this machine</span>
+          <span>Runs online · No data leaves this platform</span>
         </div>
       </div>
     </header>
